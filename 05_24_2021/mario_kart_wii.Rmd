@@ -1,0 +1,158 @@
+---
+title: "ITS MARIO KART"
+author: "Julianna Calabrese"
+date: "5/24/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(joycon)
+library(rvest)
+library(ggalt)
+library(ggdark)
+```
+
+# Rainbow Road
+
+```{r}
+# Figure out how to scrape data
+webpage <- read_html("https://mkwrs.com/mkwii/display.php?track=Rainbow+Road")
+
+tbls <- html_nodes(webpage, "table")
+
+tbls_ls <- webpage %>%
+        html_nodes("table") %>%
+        .[8:8] %>%
+        html_table(fill = TRUE)
+
+df <- data.frame(tbls_ls)
+
+# remove stuff we don't need
+rm(webpage)
+rm(tbls)
+rm(tbls_ls)
+
+df$Lap.1 <- as.numeric(df$Lap.1)
+df$Lap.2 <- as.numeric(df$Lap.2)
+df$Lap.3 <- as.numeric(df$Lap.3)
+df$Date_asDate <- as.Date(df$Date)
+
+# Clean up scraped data just a bit
+df <- df %>%
+  filter(!str_detect(Date, "Shortcut/Glitch Introduced")) %>%
+  select(-c(Ghost, Mii.Name, Nation)) %>%
+  drop_na(Lap.1) %>% 
+  mutate(Total_Time = select(., Lap.1:Lap.3) %>% rowSums())
+
+df$idu <- as.numeric(row.names(df))
+
+ggplot(df, aes(x = idu, y = Total_Time, color = Total_Time)) + 
+  geom_lollipop() +
+  #theme(axis.text.x = element_blank())  + 
+  coord_cartesian(ylim=c(130, 160)) + 
+  ggtitle("World Record Speedruns of Rainbow Road\nin Mario Kart Wii") + 
+  xlab("Speedrun Records") +
+  ylab("Total Time in Seconds") +
+  dark_theme_gray() + 
+  scale_color_gradientn(colors = joycon_pal("StarBits", type = "continuous")) +
+  theme(legend.position = "none")
+
+rm(df)
+```
+
+# Coconut Mall
+
+```{r}
+# Figure out how to scrape data
+webpage <- read_html("https://mkwrs.com/mkwii/display.php?track=Coconut+Mall")
+
+tbls <- html_nodes(webpage, "table")
+
+tbls_ls <- webpage %>%
+        html_nodes("table") %>%
+        .[8:8] %>%
+        html_table(fill = TRUE)
+
+df <- data.frame(tbls_ls)
+
+# remove stuff we don't need
+rm(webpage)
+rm(tbls)
+rm(tbls_ls)
+
+df$Lap.1 <- as.numeric(df$Lap.1)
+df$Lap.2 <- as.numeric(df$Lap.2)
+df$Lap.3 <- as.numeric(df$Lap.3)
+df$Date_asDate <- as.Date(df$Date)
+
+# Clean up scraped data just a bit
+df <- df %>%
+  filter(!str_detect(Date, "Shortcut/Glitch Introduced")) %>%
+  select(-c(Ghost, Mii.Name, Nation)) %>%
+  drop_na(Lap.1) %>% 
+  mutate(Total_Time = select(., Lap.1:Lap.3) %>% rowSums())
+
+df$idu <- as.numeric(row.names(df))
+
+ggplot(df, aes(x = idu, y = Total_Time, color = Total_Time)) + 
+  geom_lollipop() +
+  theme(axis.text.x = element_blank())  + 
+  ggtitle("World Record Speedruns of Coconut Mall\nin Mario Kart Wii") +
+  xlab("Speedrun Records") + 
+  ylab("Total Time in Seconds") +
+  dark_theme_gray() +
+  scale_color_gradientn(colors = joycon_pal("StarBits", type = "continuous")) + 
+  theme(legend.position = "none")
+
+rm(df)
+```
+
+# Wario's Gold Mine
+
+```{r}
+# Figure out how to scrape data
+webpage <- read_html("https://mkwrs.com/mkwii/display.php?track=Wario%27s+Gold+Mine")
+
+tbls <- html_nodes(webpage, "table")
+
+tbls_ls <- webpage %>%
+        html_nodes("table") %>%
+        .[8:8] %>%
+        html_table(fill = TRUE)
+
+df <- data.frame(tbls_ls)
+
+# remove stuff we don't need
+rm(webpage)
+rm(tbls)
+rm(tbls_ls)
+
+df$Lap.1 <- as.numeric(df$Lap.1)
+df$Lap.2 <- as.numeric(df$Lap.2)
+df$Lap.3 <- as.numeric(df$Lap.3)
+df$Date_asDate <- as.Date(df$Date)
+
+# Clean up scraped data just a bit
+df <- df %>%
+  filter(!str_detect(Date, "Shortcut/Glitch Introduced")) %>%
+  select(-c(Ghost, Mii.Name, Nation)) %>%
+  drop_na(Lap.1) %>% 
+  mutate(Total_Time = select(., Lap.1:Lap.3) %>% rowSums())
+
+df$idu <- as.numeric(row.names(df))
+
+ggplot(df, aes(x = idu, y = Total_Time, color = Total_Time)) + 
+  geom_lollipop() +
+  theme(axis.text.x = element_blank())  + 
+  ggtitle("World Record Speedruns of Wario's Gold Mine\nin Mario Kart Wii") +
+  xlab("Speedrun Records") + 
+  ylab("Total Time in Seconds") +
+  dark_theme_gray() +
+  scale_color_gradientn(colors = joycon_pal("StarBits", type = "continuous")) +
+  theme(legend.position = "none")
+
+rm(df)
+```
