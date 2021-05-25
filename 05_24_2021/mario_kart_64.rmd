@@ -1,0 +1,74 @@
+---
+title: "More mario kart!"
+author: "Julianna Calabrese"
+date: "5/24/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(joycon)
+library(ggthemes)
+```
+
+# Three Laps
+
+```{r}
+records <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-05-25/records.csv')
+
+records <- records %>%
+  mutate(Mattias = as.factor(if_else(player == "MR", "Mattias", "Everyone else")))
+
+records <- records %>%
+  filter(system_played == "PAL") %>%
+  filter(shortcut == "No") %>%
+  filter(type == "Three Lap")
+
+records <- records %>% 
+  arrange(track, date) %>%
+  group_by(track) %>% 
+  mutate(idu = row_number())
+
+ggplot(records, aes(x=idu, y=time, color=Mattias), alpha = 0.8) + 
+  geom_point() +
+  facet_wrap(~track, scales="free") +
+  ggtitle("Mario Kart 64 Speedruns: PAL, No Shortcut, Three Laps: \n Mattias' Records") +
+  ylab("Time in Seconds") + xlab("Speedrun Records") + theme_solarized_2(light = FALSE) +
+  theme(legend.position="top") + theme(legend.title = element_blank()) +
+  theme(legend.text=element_text(size=12)) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values = joycon_pal("Kirby")) +
+  labs(caption = "Source: mkwrs.com | #TidyTuesday | @jrosecalabrese")
+```
+
+# Single Lap
+
+```{r}
+records <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-05-25/records.csv')
+
+records <- records %>%
+  mutate(Mattias = as.factor(if_else(player == "MR", "Mattias", "Everyone else")))
+
+records <- records %>%
+  filter(system_played == "PAL") %>%
+  filter(shortcut == "No") %>%
+  filter(type == "Single Lap")
+
+records <- records %>% 
+  arrange(track, date) %>%
+  group_by(track) %>% 
+  mutate(idu = row_number())
+
+ggplot(records, aes(x=idu, y=time, color=Mattias)) + 
+  geom_point() +
+  facet_wrap(~track, scales="free") +
+  ggtitle("Mario Kart 64 Speedruns: PAL, No Shortcut, Single Lap: \n Mattias' Records") +
+  ylab("Time in Seconds") + xlab("Speedrun Records") + theme_solarized_2(light = FALSE) +
+  theme(legend.position="top") + theme(legend.title = element_blank()) +
+  theme(legend.text=element_text(size=12)) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values = joycon_pal("Kirby")) +
+  labs(caption = "Source: mkwrs.com | #TidyTuesday | @jrosecalabrese")
+```
