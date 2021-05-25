@@ -58,7 +58,8 @@ ggplot(df, aes(x = idu, y = Total_Time, color = Total_Time)) +
   ylab("Total Time in Seconds") +
   dark_theme_gray() + 
   scale_color_gradientn(colors = joycon_pal("StarBits", type = "continuous")) +
-  theme(legend.position = "none")
+  theme(legend.position = "none") +
+  labs(caption = "Source: mkwrs.com | #TidyTuesday | @jrosecalabrese")
 
 rm(df)
 ```
@@ -105,7 +106,8 @@ ggplot(df, aes(x = idu, y = Total_Time, color = Total_Time)) +
   ylab("Total Time in Seconds") +
   dark_theme_gray() +
   scale_color_gradientn(colors = joycon_pal("StarBits", type = "continuous")) + 
-  theme(legend.position = "none")
+  theme(legend.position = "none") +
+  labs(caption = "Source: mkwrs.com | #TidyTuesday | @jrosecalabrese")
 
 rm(df)
 ```
@@ -152,7 +154,8 @@ ggplot(df, aes(x = idu, y = Total_Time, color = Total_Time)) +
   ylab("Total Time in Seconds") +
   dark_theme_gray() +
   scale_color_gradientn(colors = joycon_pal("StarBits", type = "continuous")) +
-  theme(legend.position = "none")
+  theme(legend.position = "none") +
+  labs(caption = "Source: mkwrs.com | #TidyTuesday | @jrosecalabrese")
 
 rm(df)
 ```
