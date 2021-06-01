@@ -1,0 +1,78 @@
+---
+title: "TidyTuesday: survivoR"
+author: "Julianna Calabrese"
+date: "5/31/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(survivoR)
+library(maps)
+library(ggmap)
+library(viridis)
+library(cowplot)
+```
+
+# World Map
+
+```{r}
+summary <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-06-01/summary.csv')
+
+summary$country[summary$country == "Islands"] <- "Cook Islands"
+
+table <- data.frame(table(summary$country)) %>%
+  rename(country = Var1, seasons_per_country = Freq)
+
+summary <- summary %>%
+    group_by(country) %>%
+    dplyr::summarize(viewers_per_country = mean(viewers_mean, na.rm=TRUE))
+
+summary <- merge(summary, table, by="country")
+
+world <- map_data('world') %>%
+  rename(country = region) %>%
+  filter(!(country == "Antarctica"))
+
+data <- inner_join(summary, world, by="country")
+
+worldplot <- ggplot() +
+  geom_polygon(data=world, fill="gray", color="gray", 
+              aes(x=long, y=lat, group=group)) +
+  scale_x_continuous() +
+  coord_fixed(1.3) +
+  geom_polygon(data=data, color="white",
+              aes(x=long, y=lat, group=group, 
+                  fill=viewers_per_country/seasons_per_country)) +
+  scale_fill_viridis_c(option="plasma") +
+  theme_void() +
+  guides(fill=guide_colorbar(title="")) +
+  theme(legend.position="bottom", legend.key.width=unit(2.5, "cm")) +
+  scale_color_continuous(breaks=seq(5,30,5)) +
+  ggtitle("Which country had the most popular Survivor seasons?") +
+  theme(plot.title=element_text(hjust=0.5, size=20))
+```
+
+# Barplot
+
+```{r}
+barplot <- 
+  ggplot(summary, aes(x=reorder(country, viewers_per_country/seasons_per_country),
+                      y=viewers_per_country/seasons_per_country,
+                      fill=viewers_per_country/seasons_per_country)) + 
+  geom_col() + coord_flip() + theme_minimal() +
+  scale_fill_viridis_c(option="plasma") +
+  xlab("") + ylab("") + theme(legend.position="none") +
+  theme(axis.text.y=element_text(size=12, angle=0, hjust=1, vjust=0, face="plain"))
+```
+
+# Put it all together
+
+```{r}
+p1 <- plot_grid(worldplot, barplot, ncol=1) #rel_heights=c(1, 0.6))
+
+ggdraw(add_sub(p1, "Source: github.com/doehm/survivoR | #TidyTuesday | @jrosecalabrese", 
+               x=0.9, hjust=0.9, size=12))
+```
