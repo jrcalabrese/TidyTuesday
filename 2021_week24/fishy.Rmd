@@ -1,0 +1,133 @@
+---
+title: "Fish of the Great Lakes"
+author: "Julianna Calabrese"
+date: "6/7/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(joycon)
+library(ggstream)
+library(cowplot)
+library(extrafont)
+library(ggthemr)
+```
+
+# Read in data
+
+```{r}
+fishing <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-06-08/fishing.csv', guess_max = 30000)
+
+# a bit of cleaning
+fishing$species[fishing$species == "Channel catfish"] <- "Channel Catfish"
+fishing$species[fishing$species == "Lake Trout - siscowet"] <- "Lake Trout"
+fishing$species[fishing$species == "Cisco and chubs"] <- "Cisco and Chubs"
+fishing$species[fishing$species == "Cisco and Chub"] <- "Cisco and Chubs"
+fishing$species[fishing$species == "Crappies"] <- "Crappie"
+fishing$species[fishing$species == "Pacific salmon"] <- "Pacific Salmon"
+fishing$species[fishing$species == "White bass"] <- "White Bass"
+fishing$species[fishing$species == "Bullheads"] <- "Bullhead"
+fishing$species[fishing$species == "Amercian Eel"] <- "American Eel"
+
+# a bit more cleaning
+fishing <- fishing %>%
+  filter(!(species %in% c("Channel Catfish and Bullheads", 
+                                  "Cisco and Chubs",
+                                  "Rock Bass and Crappie",
+                                  "Walleye and Blue Pike")) ) %>%
+  drop_na()
+```
+
+# Wrangle
+
+```{r}
+# thank you @kierisi
+fish_tidy <- fishing %>%
+  mutate(across(where(is.character), as.factor)) %>% 
+  drop_na() %>%
+  group_by(species, year) %>%
+  summarise(total_fishies = sum(values)) %>%
+  filter(total_fishies > 0)
+
+# which fish are popular?
+pop_fish <- fish_tidy %>% 
+  group_by(species) %>% 
+  summarise(sum_fishies = sum(total_fishies)) %>%
+  arrange(desc(sum_fishies)) %>%
+  slice(1:5)
+
+# only have the popular fish
+fish_tidy <- fish_tidy %>% 
+  filter(species %in% pop_fish$species)
+
+fish_tidy$year <- as.numeric(fish_tidy$year)
+```
+
+# Plot
+
+```{r warnings=FALSE}
+ggthemr('flat')
+
+p1 <- ggplot(fish_tidy, aes(x=year, y=total_fishies, fill=species, group=species)) +
+  geom_stream(color = "dimgray") + 
+  ylab("Total Fish Caught") + xlab("") + 
+  scale_x_continuous(breaks = round(seq(min(fish_tidy$year), 
+                                        max(fish_tidy$year), 
+                                        by = 8),1)) +
+  theme(strip.text.x = element_text(size=rel(2))) +
+  theme(axis.text.x=element_text(size=rel(2))) +
+  theme(axis.text.y=element_text(size=rel(2))) +
+  theme(axis.title.y=element_text(size=rel(1.5))) +
+  theme(axis.text = element_text(family = "Garamond"), 
+        axis.title = element_text(family = "Garamond"),
+        legend.text = element_text(family = "Garamond"),
+        legend.title = element_text(family = "Garamond"),
+        strip.text = element_text(family="Garamond")) + 
+  scale_colour_ggthemr_d() +
+  scale_fill_manual(values = joycon_pal("NewHorizons"))
+
+p2 <- ggplot(fish_tidy, aes(x=year, y=total_fishies, fill=species, group=species)) +
+  geom_density(aes(group=species, fill=species), 
+               stat="identity", color="dimgray") +
+  facet_grid(~species) +
+  ylab("Total Fish Caught") + xlab("") +
+  theme(strip.text.x = element_text(size=rel(2))) +
+  theme(axis.text.x=element_text(size=rel(2))) +
+  theme(axis.text.y=element_text(size=rel(2))) +
+  theme(axis.title.y=element_text(size=rel(1.5)))  +
+  theme(axis.text = element_text(family = "Garamond"), 
+        axis.title = element_text(family = "Garamond"),
+        legend.text = element_text(family = "Garamond"),
+        legend.title = element_text(family = "Garamond"),
+        strip.text = element_text(family="Garamond")) + 
+  scale_colour_ggthemr_d() +
+  scale_fill_manual(values = joycon_pal("NewHorizons"))
+
+title <- ggdraw() + draw_label("Selected Fish of the Great Lakes", 
+                               size=30, fontfamily = "Garamond")
+
+legend <- get_legend(
+  p1 + theme(legend.box.margin=margin(10,10,10,10)) +
+    guides(fill=guide_legend(title="Fish Species")) +
+    theme(legend.text=element_text(size=rel(2))) +
+    theme(legend.title=element_text(size=rel(2)))
+)
+p3 <- plot_grid(
+  p1 + theme(legend.position="none"),
+  p2 + theme(legend.position="none"),
+  align = 'none',
+  hjust = -1,
+  nrow = 2
+)
+
+p4 <- plot_grid(p3, legend, rel_widths = c(2, .4))
+
+p5 <- plot_grid(title, p4, ncol=1, rel_heights=c(0.1, 1))
+
+p6 <- ggdraw(add_sub(p5, "Data: Great Lakes Fishery Commission | #TidyTuesday | @jrosecalabrese", x=0.9, hjust=0.9, size=20, fontfamily="Garamond"))
+
+ggsave("fishy.png", height=10, width=20)
+```
