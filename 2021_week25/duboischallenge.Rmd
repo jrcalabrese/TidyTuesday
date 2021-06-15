@@ -1,0 +1,195 @@
+---
+title: '#DuBoisChallenge'
+author: "Julianna Calabrese"
+date: "6/14/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(cowplot)
+library(joycon)
+library(tm)
+library(waffle)
+library(scales)
+library(ggthemr)
+library(lubridate)
+library(textclean)
+```
+
+## Clean up the hashtags
+
+```{r include=FALSE, warning=FALSE, message=FALSE}
+# Read in data
+tweets <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-06-15/tweets.csv')
+
+content <- tweets$content
+docs <- VCorpus(VectorSource(content)) 
+toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+
+# Convert the text to lower case
+docs <- tm_map(docs, content_transformer(tolower))
+
+# Remove numbers
+docs <- tm_map(docs, removeNumbers)
+
+# Remove english common stopwords
+docs <- tm_map(docs, removeWords, stopwords("english"))
+
+# Remove most punctuation
+removeMostPunctuation<-
+function (x, preserve_intra_word_dashes = FALSE) 
+{
+    rmpunct <- function(x) {
+        x <- gsub("#", "\002", x)
+        x <- gsub("[[:punct:]]+", "", x)
+        gsub("\002", "#", x, fixed = TRUE)
+    }
+    if (preserve_intra_word_dashes) { 
+        x <- gsub("(\\w)-(\\w)", "\\1\001\\2", x)
+        x <- rmpunct(x)
+        gsub("\001", "-", x, fixed = TRUE)
+    } else {
+        rmpunct(x)
+    }
+}
+
+docs <- tm_map(docs, content_transformer(removeMostPunctuation), preserve_intra_word_dashes = TRUE)
+
+# Eliminate extra white spaces
+docs <- tm_map(docs, stripWhitespace)
+
+# Make into a thing
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m), decreasing=TRUE)
+d <- data.frame(word = names(v), freq=v)
+
+# Only keep what begins with a hashtag
+d <- dplyr::filter(d, grepl("#|\\.",d$word))
+
+# Remove typos
+d <- d[!(d$word=="##duboischallenge" & d$word=="challenges#rstats"),]
+
+# Don't need all the words
+d <- d[!(d$freq < 10),]
+
+# Clean up
+rm(docs, dtm, m, content, toSpace, v, removeMostPunctuation)
+```
+
+## Plot tweets over time?
+
+```{r}
+# Read in data
+tweets <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-06-15/tweets.csv')
+
+tweets$twet <- strip(tweets$content)
+tweets$twet <- str_extract_all(tweets$content, "#\\S+")
+tweets$twet <- tolower(tweets$twet)
+tweets <- separate_rows(tweets,14,sep = ",")
+tweets$twet <- gsub("[^[:alnum:][:space:]#]", "", tweets$twet)
+tweets$twet <- gsub("c#", "#", tweets$twet)
+tweets$twet <- gsub(" ", "", tweets$twet)
+tweets <- subset(tweets, twet != "")
+
+list <- list(d$word)
+tweets <- tweets[tweets$twet %in% list[[1]],]
+
+## Get counts for each risk class on each date
+frequencies <- with(tweets, table(twet, datetime))
+frequencies <- as.data.frame(frequencies)
+frequencies$datetime <- as.Date(frequencies$datetime)
+
+frequencies <- frequencies %>%
+  #mutate(date = floor_date(datetime)) %>%
+  mutate(date = as.Date(week(datetime), origin = "2021-02-07")) %>%
+  group_by(date, twet) %>%
+  summarize(Freq = mean(Freq))
+```
+
+## Make pretty pictures
+
+```{r}
+ggthemr('flat')
+
+d$word  <- with(d, reorder(word, freq))
+
+## First plot
+x <- d %>%
+  count(word, wt = freq) %>%
+  ggplot(aes(fill = word, values = n/10)) +
+  geom_waffle(n_rows = 30, make_proportional = TRUE,
+              size = 0.33, color = "white", flip = TRUE) +
+  coord_equal() +
+  theme_enhance_waffle() +
+  scale_fill_manual(values = joycon_pal("StarBits", n=10, type="continuous")) +
+  guides(fill=guide_legend(title="Hashtag Used")) + 
+  theme_void() +
+  theme(text=element_text(family="Garamond"))
+
+## Second plot
+y <- ggplot(d, aes(x=reorder(word, -freq), 
+              y=freq, fill=word)) + geom_bar(stat="identity") + coord_flip() +
+  scale_fill_manual(values = joycon_pal("StarBits", n=10, type="continuous")) +
+  guides(fill=guide_legend(title="Hashtag used")) + xlab("") + ylab("Frequency") +
+  theme(axis.text.y = element_text(size = 20)) +
+  theme(legend.position = "none") +
+  theme(text=element_text(family="Garamond")) + scale_colour_ggthemr_d()
+
+## Third plot
+frequencies$twet  <- with(frequencies, reorder(twet, Freq))
+
+z <- ggplot(frequencies, aes(x=date, y=Freq, fill=twet), color="white") + 
+  geom_histogram(stat="identity") +
+  scale_fill_manual(values = joycon_pal("StarBits", n=10, type="continuous")) + 
+  #theme_void() + 
+  scale_colour_ggthemr_d() + 
+  scale_x_date(breaks = breaks_pretty(10)) +
+  theme(text=element_text(family="Garamond")) + xlab("") + ylab("")
+
+## Put the pretty pictures together
+
+title <- ggdraw() + draw_label("Popular hashtags used during the #DuBoisChallenge", 
+                               size=30,
+                               fontfamily = "Garamond")
+
+legend <- get_legend(
+  x + 
+    guides(fill=guide_legend(title=" ")) +
+    theme(legend.text=element_text(size=rel(1.5))) +
+    theme(legend.title=element_text(size=rel(1.5))) +
+    theme(legend.position = "right") + 
+    theme(legend.key.size = unit(1, "cm"))
+)
+
+p1 <- plot_grid(
+  y + theme(legend.position="none"),
+  z + theme(legend.position="none"),
+  x + theme(legend.position="none"),
+  align = 'v',
+  axis = "lr",
+  hjust = -1,
+  nrow = 3,
+  ncol = 1, 
+  rel_heights = c(10, 5, 2)
+)
+
+p3 <- plot_grid(p1, 
+                legend, 
+                #rel_heights = c(2, .4),
+                rel_widths = c(2.5, 1), #.5 .4
+                nrow=1,
+                ncol=2)
+
+p4 <- plot_grid(title, p3, ncol=1, rel_heights=c(0.1, 1))
+
+p5 <- ggdraw(add_sub(p4, "Source:  Anthony Starks, Allen Hillery, & Sekou Tyler \n #TidyTuesday | @jrosecalabrese", x=0.9, hjust=0.9, size=12,
+                     fontfamily="Garamond"))
+
+p5
+
+ggsave("dubois.png", height=8, width=10)
+```
