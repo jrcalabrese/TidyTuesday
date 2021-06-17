@@ -12,6 +12,6 @@ My contributions to the [#TidyTuesday](https://github.com/rfordatascience/tidytu
 
 <img src="2021_week22/rainbowroad.png" width="50%" height="50%">
 
-## Week 24: Survivor
+## Week 24: Fish of the Great Lakes
 
 <img src="2021_week24/fishy.png" width="75%" height="75%">
