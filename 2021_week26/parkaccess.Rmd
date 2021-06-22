@@ -1,0 +1,150 @@
+---
+title: "Park Access"
+author: "Julianna Calabrese"
+date: "6/21/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(scales)
+library(joycon)
+library(ggbump)
+```
+
+```{r}
+parks <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-06-22/parks.csv')
+
+# Make a list of cities that I'm interested in
+south_list <- c("New Orleans", "Atlanta", "Nashville", "Louisville",
+                #"Jacksonville", 
+                "Memphis", "Baton Rouge")
+
+# Use that list to filter
+sp <- parks %>%
+  filter(city %in% south_list)
+
+# Remove list
+rm(south_list)
+
+# Take away those dollar signs
+sp <- sp %>%
+  mutate(spend_per_resident_data = parse_number(spend_per_resident_data)) %>%
+  mutate(spend_per_resident_data_mean = mean(spend_per_resident_data))
+
+# Make mean diff variables
+sp$mean_diff <- sp$spend_per_resident_data - sp$spend_per_resident_data_mean
+```
+
+# Spend per resident points
+
+## Bump plot
+
+```{r}
+# Make palette
+pal <- joycon_pal("StardewValley", 6, type = "continuous")
+
+# Reorder city by expenditure
+sp$city <- with(sp, reorder(city, spend_per_resident_data))
+
+p1 <- ggplot(sp, aes(x=as.numeric(year), 
+                          y=spend_per_resident_data, 
+                          color = city)) +
+  geom_point(size = 7) +
+  geom_bump(size = 2, smooth = 8) +
+  theme_classic() +
+  scale_color_manual(values = pal) +
+  xlab("") + ylab("Spending per resident in USD") + 
+  ggtitle("Park Spending in Southern Cities") +
+  guides(color=guide_legend(title=" ")) + 
+  theme(text=element_text(family="Garamond")) +
+  theme(axis.text.x = element_text(size = 20, angle = 0, vjust = 0.5, hjust=0.5)) +
+  theme(axis.title.y = element_text(size=20)) +
+  theme(axis.text.y = element_text(size=20)) +
+  theme(legend.text=element_text(size=20)) +
+  theme(legend.title=element_text(size=20)) +
+  theme(title=element_text(size=26)) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  # Big label
+  annotate(geom = "text", x = 2012.5, y = 150, 
+           label = "In 2019, New Orleans spent over \ndouble than Memphis per resident,\ndespite having 250k fewer residents.", 
+           family = "Garamond", size=7, hjust = "left", color = "black") +
+  # Red circle around NOLA
+  geom_point(aes(x = 2019, y = 177),
+             shape = 1, color = "black",
+             size = 7, stroke = 2) +
+  # Arrow for NOLA
+  annotate(
+    geom = "curve", x = 2019, y = 160, xend = 2019, yend = 177, 
+    color = "black",
+    curvature = .3, arrow = arrow(length = unit(2, "mm"))) +
+  # Text for NOLA
+  annotate(geom = "text", x = 2018, y = 157,
+           label = "$177 per NOLA resident", 
+           family = "Garamond", size=6, hjust = "left", color = "black") +
+  # Red circle around Memphis
+  geom_point(aes(x = 2019, y = 66),
+             shape = 1, color = "black",
+             size = 7, stroke = 2) +
+  # Arrow for Memphis
+    annotate(
+    geom = "curve", x = 2018.75, y = 80, xend = 2019, yend = 66, 
+    color = "black",
+    curvature = .3, arrow = arrow(length = unit(2, "mm"))) +
+  # Text for Memphis
+  annotate(geom = "text", x = 2017, y = 85, 
+           label = "$66 per Memphis resident", 
+           family = "Garamond", size = 7, hjust = "left", color = "black") + 
+  labs(caption = "Source: The Trust for Public Land \n #TidyTuesday | @jrosecalabrese", 
+       size=5, fontfamily="Garamond")
+
+p1
+```
+
+## Bar plot by mean difference - check!
+
+```{r}
+# Make palette
+pal <- joycon_pal("StardewValley", 6, type = "continuous")
+
+# Reorder city by expenditure diff
+sp$city <- with(sp, reorder(city, mean_diff))
+
+p2 <- ggplot(sp, aes(x=as.factor(year), 
+                          y=mean_diff, 
+                          group=city,
+                          fill=city)) +
+  geom_col(position="dodge") + 
+  theme_classic() +
+  scale_fill_manual(values = pal) +
+  xlab("") + ylab("Mean difference in spending\nper resident in USD") + 
+  ggtitle("Park Spending in Southern Cities, relative to Average Spending") +
+  guides(fill=guide_legend(title=" ")) + 
+  theme(text=element_text(family="Garamond")) +
+  theme(axis.text.x = element_text(size = 20, angle = 0, vjust = 0.5, hjust = 0.5)) +
+  theme(axis.title.y = element_text(size=20)) +
+  theme(axis.text.y = element_text(size=20)) +
+  theme(legend.text=element_text(size=20)) +
+  theme(legend.title=element_text(size=20)) +
+  theme(title=element_text(size=26)) + 
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  annotate(geom = "text", x = 1.75, y = 70, 
+           label = "Out of these six cities, \ncities spent an average $83 per resident\non parks between 2012 and 2020.", 
+           family = "Garamond",
+           size = 7,
+           hjust = "left",
+           color = "black") + 
+  labs(caption = "Source: The Trust for Public Land \n #TidyTuesday | @jrosecalabrese", 
+       size=5, fontfamily="Garamond")
+
+p2
+```
+
+# Save your plots
+
+```{r}
+ggsave("parkspending_bump.png", p1, height=7, width=12)
+ggsave("parkspending_bar.png", p2, height=7, width=12)
+```
