@@ -1,0 +1,183 @@
+---
+title: "Animal Rescue in London"
+author: "Julianna Calabrese"
+date: "6/29/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(forcats)
+library(cowplot)
+library(ggthemr)
+library(joycon)
+```
+
+```{r}
+# Read in data
+df <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-06-29/animal_rescues.csv')
+
+# Cleaning from @kierisi, thank you!
+# https://twitter.com/kierisi/status/1409709703542710284
+df <- df %>%
+  mutate(animal_group_parent = recode(animal_group_parent,
+                                      cat = "Cat",
+                                      Budgie = "Bird",
+                                      Pigeon = "Bird")) %>%
+  mutate(animal_group_parent = case_when(str_detect(animal_group_parent, "Unknown") ~ "Unknown", TRUE ~ animal_group_parent)) %>%
+  mutate(across(where(is.character), factor)) %>%
+  mutate(special_service_type_category = recode(special_service_type_category, "Other animal assistance" = "Animal rescue from trapped location")) %>%
+  mutate(animal_group_parent = fct_lump(animal_group_parent, n=7)) %>%
+  mutate(special_service_type_category = fct_relevel(special_service_type_category,
+                                                       "Animal rescue from height",
+                                                       "Animal rescue from trapped location",
+                                                       "Animal rescue from water",
+                                                       "Animal rescue from below ground"))
+
+# Because facet_wrap won't let me assign individual themes to individual facets :sadface:
+flat_theme <- ggthemr('flat', set_theme = FALSE, type="outer")
+grape_theme <- ggthemr('grape', set_theme = FALSE, type="outer")
+sky_theme <- ggthemr('sky', set_theme = FALSE, type="outer")
+earth_theme <- ggthemr('earth', set_theme = FALSE, type="outer")
+
+a <- df %>%
+  filter(special_service_type_category == "Animal rescue from height") %>%
+  ggplot(aes(x=animal_group_parent, fill=animal_group_parent)) +
+  geom_bar(position="stack") + 
+  scale_x_discrete(drop=FALSE) + xlab("") + ylab("") + 
+  theme(plot.margin = unit(c(6,6,6,6), "lines")) +
+  flat_theme$theme +
+  ggtitle("From high places...") +
+  theme(text=element_text(family="Garamond")) + 
+  theme(plot.title = element_text(size = 20, face = "bold")) +
+  scale_fill_manual(values = joycon_pal("Hyrule", n=10, type="continuous")) +
+  theme(axis.text.x=element_text(size=rel(1.5), face="bold"))
+
+b <- df %>%
+  filter(special_service_type_category == "Animal rescue from trapped location") %>%
+  ggplot(aes(x=animal_group_parent, fill=animal_group_parent)) +
+  geom_bar(position="stack") + 
+  scale_x_discrete(drop=FALSE) + xlab("") + ylab("") + 
+  theme(plot.margin = unit(c(6,6,6,6), "lines")) +
+  grape_theme$theme +
+  ggtitle("From somewhere they got stuck...") +
+  theme(plot.title = element_text(hjust = .75)) +
+  theme(text=element_text(family="Garamond")) +
+  theme(plot.title = element_text(size = 20, face = "bold")) +
+  scale_fill_manual(values = joycon_pal("Hyrule", n=10, type="continuous")) +
+  theme(axis.text.x=element_text(size=rel(1.5), face="bold"))
+
+c <- df %>%
+  filter(special_service_type_category == "Animal rescue from water") %>%
+  ggplot(aes(x=animal_group_parent, fill=animal_group_parent)) +
+  geom_bar(position="stack") + 
+  scale_x_discrete(drop=FALSE) + xlab("") + ylab("") + 
+  theme(plot.margin = unit(c(6,6,6,6), "lines")) +
+  sky_theme$theme +
+  ggtitle("From the water...") +
+  theme(text=element_text(family="Garamond")) +
+  theme(plot.title = element_text(size = 20, face = "bold")) +
+  scale_fill_manual(values = joycon_pal("Hyrule", n=10, type="continuous")) +
+  theme(axis.text.x=element_text(size=rel(1.5), face="bold"))
+
+d <- df %>%
+  filter(special_service_type_category == "Animal rescue from below ground") %>%
+  ggplot(aes(x=animal_group_parent, fill=animal_group_parent)) +
+  geom_bar(position="stack") + 
+  scale_x_discrete(drop=FALSE) + xlab("") + ylab("") + 
+  theme(plot.margin = unit(c(6,6,6,6), "lines")) +
+  earth_theme$theme +
+  ggtitle("From below the ground...") +
+  theme(plot.title = element_text(hjust = .75)) +
+  theme(text=element_text(family="Garamond")) +
+  theme(plot.title = element_text(size = 20, face = "bold")) +
+  scale_fill_manual(values = joycon_pal("Hyrule", n=10, type="continuous")) +
+  theme(axis.text.x=element_text(size=rel(1.5), face="bold")) +
+  labs(caption = "Source: London.gov | #TidyTuesday | @jrosecalabrese", size=12) +
+  theme(plot.caption=element_text(size=rel(1.5), hjust=0.5))  +
+  theme(plot.caption = element_text(hjust = 1))
+
+light_theme <- ggthemr('light', set_theme = FALSE, type="outer", layout = "minimal")
+title <- ggdraw() + draw_label("In London, where do\nanimals need rescue?", 
+                               size=30,
+                               fontfamily = "Garamond") + light_theme$theme +
+  theme(axis.line=element_blank(), axis.text.x=element_blank(),
+          axis.text.y=element_blank(), axis.ticks=element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(), legend.position="none")
+
+p1 <- plot_grid(
+  a + theme(legend.position="none"),
+  b + theme(legend.position="none"),
+  c + theme(legend.position="none"),
+  d + theme(legend.position="none"),
+  align = 'v',
+  axis = "lr",
+  hjust = -1,
+  nrow = 4,
+  ncol = 1
+)
+
+p2 <- plot_grid(title, p1, ncol=1, rel_heights=c(0.1, 1))
+
+ggsave("animal_rescue.png", height=15, width=9)
+```
+
+```{r}
+# bonus donut
+donut <- as.data.frame(table(df$special_service_type_category)) %>%
+  rename(count = Freq) %>%
+  rename(category = Var1) %>%
+  mutate(category = recode(category, "Animal rescue from height" = "High locations")) %>%
+  mutate(category = recode(category, "Animal rescue from trapped location" = "Trapped locations")) %>%
+  mutate(category = recode(category, "Animal rescue from water" = "Water")) %>%
+  mutate(category = recode(category, "Animal rescue from below ground" = "Below ground"))
+
+donut$fraction = donut$count / sum(donut$count)
+donut$ymax = cumsum(donut$fraction)
+donut$ymin = c(0, head(donut$ymax, n=-1))
+
+donut_cols <- c("#ecf0f1", #flat
+                "#e8ece5", #grape
+                "#bfeaf8", #sky
+                "#36312C") #earth
+
+donut_theme <- ggthemr('dust', set_theme = FALSE, type="outer", layout = "minimal")
+
+theme_set(theme_minimal(base_family = "Garamond"))
+update_geom_defaults("label", list(colour = "grey20", family = theme_get()$text$family))
+
+ggplot(donut, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=category)) +
+  geom_rect() +
+  coord_polar(theta="y") +
+  xlim(c(2, 4)) +
+  scale_fill_manual(values = donut_cols) +
+  guides(fill=guide_legend(title="Rescue Locations")) +
+  theme_set(theme_minimal(base_family = "Garamond")) +
+  donut_theme$theme +
+  theme(axis.line=element_blank(),axis.text.x=element_blank(),
+          axis.text.y=element_blank(),axis.ticks=element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank()) +
+  theme(text=element_text(family="Garamond")) +
+  ggtitle("In London, where do\nanimals need rescue?") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.text=element_text(size=rel(1.5))) +
+  theme(legend.title=element_text(size=rel(1.5))) +
+  theme(plot.title = element_text(size=30)) +
+  geom_label(
+    aes(label = paste(round(fraction, 2) * 100, "%"),
+    x = 3.5,
+    y = (ymin + ymax) / 2), fill = "#FAF7F2", size=6,
+    inherit.aes = TRUE,
+    show.legend = FALSE
+  ) +
+  labs(caption = "Source: London.gov | #TidyTuesday | @jrosecalabrese", size=26) +
+  theme(plot.caption = element_text(hjust = 1.75))
+
+ggsave("bonus_donut.png", height=5, width=6)
+```
+
+
