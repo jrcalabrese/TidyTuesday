@@ -1,0 +1,198 @@
+---
+title: "Independence"
+author: "Julianna Calabrese"
+date: "7/5/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Libraries
+
+```{r}
+library(tidyverse)
+library(forcats)
+library(gapminder)
+library(ggthemes)
+library(wesanderson)
+```
+
+# Wrangle data
+
+```{r}
+holidays <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-07-06/holidays.csv')
+
+# Wrangle
+# https://twitter.com/kierisi/status/1412243303714668547
+
+holidays <- holidays %>%
+  select(-event_commemorated_and_notes) %>%
+  #mutate(across(where(is.character), factor)) %>% 
+  mutate(independence_from = 
+           recode_factor(independence_from, "Russian Soviet Federative Socialist Republic" = "Soviet Union")) %>% 
+  mutate(independence_from = 
+           recode_factor(independence_from, "Russian Soviet Federative Socialist Republic and German Empire" = "Soviet Union")) %>% 
+  mutate(independence_from = 
+           recode_factor(independence_from, "Spanish Empire" = "Spain")) %>%
+  mutate(independence_from = 
+           recode_factor(independence_from, "United Kingdom of Great Britain" = "United Kingdom")) %>%
+  mutate(independence_from = 
+           recode_factor(independence_from, "Kingdom of Great Britain" = "United Kingdom")) %>%
+  mutate(independence_from = 
+           recode_factor(independence_from, "United Kingdom of Great Britain and Ireland" = "United Kingdom")) %>%
+  mutate(independence_from = 
+           recode_factor(independence_from, "United Kingdom of Portugal, Brazil and the Algarves" = "Portugal")) %>%
+  mutate(independence_from = 
+           recode_factor(independence_from, "United Kingdom and the British Mandate for Palestine" = "United Kingdom")) %>%
+  mutate(independence_from = 
+           recode_factor(independence_from, "SFR Yugoslavia" = "Yugoslavia")) %>% 
+  mutate(independence_from = 
+           recode_factor(independence_from, "Socialist Federal Republic of Yugoslavia" = "Yugoslavia")) %>%
+  mutate(independence_from = 
+           recode_factor(independence_from, "Empire of Japan and France" = "Empire of Japan")) %>%
+  mutate(independence_from = 
+           recode_factor(independence_from, "Spanish Empire[72]" = "Spain")) %>%
+  mutate(independence_from = 
+           recode_factor(independence_from, "Soviet Union[80]" = "Soviet Union")) %>%
+  mutate(independence_from = 
+           recode_factor(independence_from, "Soviet Union[55]" = "Soviet Union")) %>%
+  mutate(across(independence_from, fct_explicit_na, "What's independence?"))
+
+# Round year to the nearest decade
+# https://stackoverflow.com/questions/35352914/floor-a-year-to-the-decade-in-r
+
+round_to_decade = function(value){ return(round(value / 10) * 10) }
+
+holidays <- holidays %>%
+  mutate(decade = round_to_decade(year))
+
+rm(round_to_decade)
+```
+
+# Independence Map
+
+```{r}
+# https://gist.github.com/MrFlick/8114a37fcfe6e093570248dad56a5865
+
+mapdata <- map_data("world") %>%
+  filter(!(region=="Antarctica")) %>%
+  filter(!(region=="Greenland")) %>%
+  filter(!(region=="French Southern and Antarctic Lands")) %>% 
+  mutate(region = recode(region,
+                         USA="United States",
+                         UK="United Kingdom"))
+
+holidays %>% 
+  mutate(independence_from = fct_lump(independence_from, n=7)) %>%
+  ggplot() + 
+  geom_map(dat = mapdata, map = mapdata, aes(map_id=region), fill="#E86F00", color=NA) +
+  geom_map(aes(map_id=country, fill=independence_from), map=mapdata) + 
+  expand_limits(x = mapdata$long, y = mapdata$lat) +
+  coord_map(projection = "gilbert", xlim = c(-180, 180)) +  #mollweide
+  ggthemes::theme_map() +
+  theme(
+        text=element_text(family="Garamond"),   
+        plot.title = element_text(size=22, hjust = 0.5),
+        plot.background = element_rect(fill = "white", color=NA),
+        legend.position = "top",
+        legend.justification = "center",
+        legend.background=element_blank(),
+        legend.key = element_rect(colour = NA, fill = NA), 
+        legend.box.background = element_blank(),
+        legend.text=element_text(size=rel(2))) +
+  scale_fill_manual(values = wes_palette("Zissou1", 8, type = "continuous"),
+                      na.value="#E86F00", na.translate=F) +
+  guides(fill=guide_legend(title="", ncol=3)) +
+  ggtitle("Happy Independence Day from... !") +
+  labs(caption = "Source: Wikipedia | #TidyTuesday | @jrosecalabrese") +
+  theme(plot.caption= element_text(size=16, hjust=1))
+
+ggsave("independence_map.png", height=8, width=8)
+```
+
+# Barplot of independence by decade
+
+```{r}
+holidays %>%
+  mutate(independence_from = fct_lump(independence_from, n=6)) %>%
+  group_by(independence_from) %>%
+  mutate(count_name_occurr = n()) %>%
+  filter(!is.na(independence_from)) %>%
+  filter(!(independence_from == "What's independence?")) %>%
+  filter(year > 1700) %>%
+  ggplot(aes(x=decade, fill=independence_from)) +
+  geom_bar() +
+  scale_fill_manual(values = wes_palette("Zissou1", 6, type = "continuous")) +
+  # American Independence 
+    geom_label(
+    label="American\nIndependence", 
+    x=1783,
+    y=15,
+    family="Garamond",
+    label.padding = unit(0.55, "lines"),
+    label.size = 0.35,
+    color = "black",
+    fill = "#BDC367"
+  ) +
+  # Spanish-American War
+  geom_label(
+    label="Spanish-American War", 
+    x = 1898,
+    y = 5,
+    family="Garamond",
+    label.padding = unit(0.55, "lines"),
+    label.size = 0.35,
+    color = "black",
+    fill = "#6BB1C1"
+  ) +
+  # World War I
+    geom_label(
+    label="World War I", 
+    x = 1916,
+    y = 15,
+    family="Garamond",
+    label.padding = unit(0.55, "lines"),
+    label.size = 0.35,
+    color = "black",
+    fill = "#BDC367"
+  ) +
+  # World War II 
+  geom_label(
+    label="World War II", 
+    x=1942,
+    y=35,
+    family="Garamond",
+    label.padding = unit(0.55, "lines"),
+    label.size = 0.35,
+    color = "black",
+    fill="#E49100"
+  ) +
+  # Fall of Soviet Union
+  geom_label(
+    label="Fall of the\nSoviet Union", 
+    x=1991,
+    y=26,
+    family="Garamond",
+    label.padding = unit(0.55, "lines"),
+    label.size = 0.35,
+    color = "black",
+    fill="#3B9AB2"
+  ) +
+  theme_minimal() +
+  theme(
+    text=element_text(family="Garamond"), 
+    plot.background = element_rect(fill = "white", color=NA),
+    legend.title = element_blank(),
+    plot.title = element_text(size = 30, hjust = 0.5),
+    axis.text.x = element_text(size = 20, angle = 0, vjust = 0.5, hjust=0.5),
+    axis.title.x = element_text(size = 20),
+    axis.text.y = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    legend.text=element_text(size = 20)) +
+  ggtitle("When did countries leave their empires?") + 
+  ylab("Count") + xlab("Decade") +
+  labs(caption = "Source: Wikipedia | #TidyTuesday | @jrosecalabrese") +
+  theme(plot.caption = element_text(size = 16, hjust = 1))
+
+ggsave("independence_barplot.png", height = 8, width = 12)
+```
