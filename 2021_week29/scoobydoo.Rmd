@@ -1,0 +1,190 @@
+---
+title: "Scooby Doo!"
+author: "Julianna Calabrese"
+date: "7/12/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Libraries
+
+```{r}
+library(tidyverse)
+library(scales)
+library(ggthemr)
+library(lubridate)
+library(joycon)
+library(reshape2)
+library(gganimate)
+library(ggbump)
+```
+
+# Data
+
+```{r}
+scoobydoo <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-07-13/scoobydoo.csv')
+
+# Remove movies, specials, crossovers, etc.
+scoobydoo <- scoobydoo %>%
+  filter(!(season == "Crossover")) %>%
+  filter(!(season == "Movie")) %>%
+  filter(!(season == "Special"))
+
+# Reorder by series year
+scoobydoo$series_name  <- with(scoobydoo, reorder(series_name, date_aired))
+```
+
+# Plots that work
+
+## IMDB ratings over time by series name
+
+```{r warning=FALSE, error=FALSE}
+light_theme <- ggthemr('light', set_theme = FALSE, type="outer")
+
+scoobydoo %>%
+  ggplot(aes(x=date_aired, y=as.numeric(as.character((imdb))), 
+             color=series_name)) + 
+  geom_point(size=3) + 
+  scale_color_manual(values = joycon_pal("MajorasMask", n=15, type = "continuous")) +
+  scale_x_date(breaks = pretty_breaks(7)) +
+  labs(color="Series Name") + 
+  xlab("Episode Date Aired") + ylab("IMDB Rating") + 
+  ggtitle("IMBD Ratings of Scooby-Doo Shows Over Time") +
+  light_theme$theme +
+  guides(fill=guide_legend(ncol=2)) +
+    theme(
+    legend.position = "right",
+    text=element_text(family="Garamond"), 
+    legend.title = element_blank(),
+    plot.title = element_text(size = 30, hjust = 0),
+    axis.text.x = element_text(size = 20, angle = 0, vjust = 0.5, hjust=0.5),
+    axis.title.x = element_text(size = 20),
+    axis.text.y = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    legend.text=element_text(size = 20))  +
+  labs(caption = "Source: www.kaggle.com/williamschooleman | #TidyTuesday | @jrosecalabrese") +
+  theme(plot.caption = element_text(size = 16, hjust = 1))
+
+ggsave("imdb_ratings_series.png", height=7, width=12)
+```
+
+## IMDB ratings over time by network
+
+```{r warning=FALSE, error=FALSE}
+light_theme <- ggthemr('light', set_theme = FALSE, type="outer")
+
+scoobydoo %>%
+  ggplot(aes(x=date_aired, y=as.numeric(as.character((imdb))), 
+             color=network)) + 
+  geom_point(size=3) + 
+  scale_color_manual(values = joycon_pal("TwilightPrincess", n=6, type = "continuous")) +
+  scale_x_date(breaks = pretty_breaks(7)) +
+  labs(color="Series Name") + 
+  xlab("Episode Date Aired") + ylab("IMDB Rating") + 
+  ggtitle("IMBD Ratings of Scooby-Doo Shows Over Time by Network") +
+  light_theme$theme +
+    theme(
+    text=element_text(family="Garamond"), 
+    legend.title = element_blank(),
+    plot.title = element_text(size = 30, hjust = 0),
+    axis.text.x = element_text(size = 20, angle = 0, vjust = 0.5, hjust=0.5),
+    axis.title.x = element_text(size = 20),
+    axis.text.y = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    legend.text=element_text(size = 20))  +
+  labs(caption = "Source: www.kaggle.com/williamschooleman | #TidyTuesday | @jrosecalabrese") +
+  theme(plot.caption = element_text(size = 16, hjust = 1))
+
+ggsave("imdb_ratings_network.png", height=7, width=12)
+```
+
+# Failed animated plot :(
+
+```{r}
+scoobydoo <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-07-13/scoobydoo.csv')
+
+# Remove movies, specials, crossovers, etc.
+scoobydoo <- scoobydoo %>%
+  filter(!(season == "Crossover")) %>%
+  filter(!(season == "Movie")) %>%
+  filter(!(season == "Special")) %>%
+  # And also anything NULL
+  filter(!(zoinks == "NULL")) %>%
+  filter(!(groovy == "NULL")) %>%
+  filter(!(jinkies == "NULL")) %>%
+  filter(!(my_glasses == "NULL")) %>%
+  filter(!(jeepers == "NULL")) %>%
+  filter(!(rooby_rooby_roo == "NULL"))
+
+# Convert catchphrases to "numeric" effectively
+scoobydoo <- scoobydoo %>%
+  #filter(!(series_name == "Laff-a-Lympics")) %>%
+  #filter(!(series_name == "Shaggy & Scooby-Doo Get a Clue!")) %>%
+  mutate(zoinks = as.numeric(zoinks)) %>%
+  mutate(groovy = as.numeric(groovy)) %>%
+  mutate(jinkies = as.numeric(jinkies)) %>%
+  mutate(zoinks = as.numeric(my_glasses)) %>%
+  mutate(groovy = as.numeric(jeepers)) %>%
+  mutate(jinkies = as.numeric(rooby_rooby_roo))
+
+# Melt data for the animated plot
+scoobymelt <- scoobydoo %>%
+  select(contains("zoinks") | contains("groovy") | contains("jinkies") |
+          contains("my_glasses") | contains("jeepers") | contains("rooby_rooby_roo") |
+           contains("date_aired") | 
+           contains("index") )
+
+scoobymelt <- scoobymelt %>%
+  #group_by(index) %>%
+  mutate(zoinks_sum = cumsum(((zoinks)))) %>%
+  mutate(groovy_sum = cumsum(((groovy)))) %>%
+  mutate(jinkies_sum = cumsum(((jinkies)))) %>%
+  mutate(my_glasses_sum = cumsum(((my_glasses)))) %>%
+  mutate(jeepers_sum = cumsum(((jeepers)))) %>%
+  mutate(rooby_rooby_roo_sum = cumsum(((rooby_rooby_roo)))) %>%
+  select(!(c("zoinks", "groovy", "jinkies",
+             "my_glasses", "jeepers", "rooby_rooby_roo"))) %>%
+  reshape2::melt(id.vars=c("index", "date_aired")) %>%
+  mutate(variable = recode(variable, "zoinks_sum" = "Zoinks!")) %>%
+  mutate(variable = recode(variable, "groovy_sum" = "Groovy")) %>%
+  mutate(variable = recode(variable, "jinkies_sum" = "Jinkies")) %>%
+  mutate(variable = recode(variable, "my_glasses_sum" = "My Glasses!")) %>%
+  mutate(variable = recode(variable, "jeepers_sum" = "Jeepers")) %>%
+  mutate(variable = recode(variable, "rooby_rooby_roo_sum" = "Rooby Rooby Roo!"))
+
+scoobymelt$Year <- lubridate::year(scoobymelt$date_aired)
+```
+
+```{r}
+light_theme <- ggthemr('light', set_theme = FALSE, type="outer")
+
+scoob <- scoobymelt %>%
+  arrange(date_aired) %>%
+  ggplot(aes(x=variable, y=value, fill=variable)) + 
+  geom_bar(stat="identity") +
+  scale_fill_manual(values = joycon_pal("MayaFey", n=6, type = "continuous")) +
+  xlab("") + ylab("Count") +
+  transition_states(index) +
+  #enter_grow() +
+  ease_aes('cubic-in') +
+  ggtitle("Zoinks!\nAnd the use of other\ncatchphrases over time") +
+  labs(subtitle = "Episode Date Aired: {scoobymelt$Year[as.integer(closest_state)]}") +
+  light_theme$theme +
+    theme(
+    text=element_text(family="Garamond"), 
+    legend.title = element_blank(),
+    plot.title = element_text(size = 30, hjust = 0.5),
+    plot.subtitle = element_text(size = 20),
+    axis.text.x = element_blank(),
+    axis.title.x = element_text(size = 20),
+    axis.text.y = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    legend.text=element_text(size = 20))  +
+  labs(caption = "Source: www.kaggle.com/williamschooleman\n#TidyTuesday | @jrosecalabrese") +
+  theme(plot.caption = element_text(size = 16, hjust = 0))
+
+animate(scoob, nframes=500, fps=100, renderer = gifski_renderer())
+
+#anim_save("animated_plot.gif", animation = last_animation())
+```
