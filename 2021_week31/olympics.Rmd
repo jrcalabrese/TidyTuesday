@@ -1,0 +1,138 @@
+---
+title: "Olympic Medals"
+author: "Julianna Calabrese"
+date: "7/28/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(cowplot)
+library(ggthemr)
+library(waffle)
+options(scipen=999)
+```
+
+# Prep
+
+```{r}
+# Read in data
+olympics <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-07-27/olympics.csv')
+
+# Create a minor/adult variable
+olympics <- olympics %>%
+  mutate(ageofmajority = ifelse(age >= 18, 
+         "Adult",
+         "Minor"))
+
+# Turn characters into factors
+olympics <- olympics %>% 
+  mutate(across(where(is.character), factor))
+
+# Remove row if age is NA
+olympics <- olympics %>%
+  drop_na(age)
+```
+
+# Descriptive
+
+```{r}
+olympics %>%
+  ggplot(aes(x=ageofmajority, y=age, fill=ageofmajority)) + 
+  geom_boxplot()
+
+olympics %>%
+  ggplot(aes(x=ageofmajority)) + 
+  geom_bar()
+```
+
+# Gold Medals since 1950: Minors versus Adults
+
+```{r}
+flat_theme <- ggthemr('flat', set_theme = TRUE, type="inner")
+
+# Top 10 sports for minors
+minor <- olympics %>%
+  filter(year < 1950) %>%
+  filter(ageofmajority == "Minor") %>%
+  filter(medal == "Gold") %>%
+  mutate(sport = fct_lump(sport, n=8)) %>%
+  filter(sport != "Other") %>%
+  count(sport) %>%
+  mutate(Percent = n / sum(n)) %>%
+  ggplot(aes(x=forcats::fct_reorder(sport, desc(Percent)), Percent))  + 
+  geom_bar(stat="identity", fill="#2ecc71") + 
+  coord_flip() +
+  ggtitle("Gold Medals awarded to Minors") +
+  xlab("") + ylab("") +
+  scale_y_reverse(labels = scales::percent_format(accuracy = 1)) +
+  flat_theme$theme + 
+  theme(plot.title = element_text(hjust = 1)) +
+  labs(x=NULL, y=NULL)
+
+# Top 10 sports for adults
+adult <- olympics %>%
+  filter(year < 1950) %>%
+  filter(ageofmajority == "Adult") %>%
+  filter(medal == "Gold") %>%
+  mutate(sport = fct_lump(sport, n=8)) %>%
+  filter(sport != "Other") %>%
+  count(sport) %>%
+  mutate(Percent = n / sum(n)) %>%
+  ggplot(aes(x=forcats::fct_reorder(sport, desc(Percent)), Percent))  + 
+  geom_bar(stat="identity", fill="#3498db") + 
+  coord_flip() + 
+  ggtitle("Gold Medals awarded to Adults") +
+  xlab("") + ylab("") +
+  scale_x_discrete(position = "top") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  flat_theme$theme + labs(x=NULL, y=NULL)
+
+title <- ggdraw() + draw_label("Olympic Gold Medals awarded since 1950:", 
+                               color = "#34495e", 
+                               fontface = "bold",
+                               size=20,
+                               hjust = 0.5) #+ flat_theme$theme
+
+subtitle <- ggdraw() + draw_label("Almost 50% of gold medals awarded to minors have been in swimming,\n while adults win gold medals across a wider variety of sports.", 
+                               color = "#34495e", 
+                               fontface = "plain",
+                               size=14,
+                               hjust = 0.5) #+ flat_theme$theme
+
+caption <- ggdraw() + draw_label("Source: kaggle.com | #TidyTuesday | @jrosecalabrese", 
+                               color = "#34495e", 
+                               fontface = "bold",
+                               size=12,
+                               hjust = 0) #+ flat_theme$theme
+  
+gridded <- plot_grid(minor, adult,
+                  align = "h")
+
+plot_grid(title, subtitle, gridded, caption, ncol = 1, rel_heights = c(0.05, 0.1, .90, 0.1))
+```
+
+# Minor Olympians sent by country
+
+```{r}
+olympics %>%
+  mutate(Gender = ifelse(sex == "F", "Female", "Male")) %>%
+  filter(year > 1950) %>%
+  filter(ageofmajority == "Minor") %>%
+  filter(!is.na(medal)) %>%
+  mutate(team = fct_lump(team, n=10)) %>%
+  filter(team != "Other") %>%
+  group_by(Gender) %>%
+  count(team) %>%
+  mutate(Percent = n / sum(n)) %>%
+  ggplot(aes(x=forcats::fct_reorder(team, desc(n)), n, fill=Gender))  + 
+  geom_bar(stat="identity", position="stack") + coord_flip() + flat_theme$theme +
+  ggtitle("Since 1950, the United States has sent the most minors to the\nOlympic Games, but there is an overwhelming gender imbalance.") +
+  xlab("") + ylab("") + theme(plot.title = 
+                                element_text(size=20, face="bold", margin=margin(0,0,20,0))) +
+  labs(caption = "Source: kaggle.com | #TidyTuesday | @jrosecalabrese", 
+       size=12, hjust=0) +
+  theme(plot.caption = element_text(face = "bold"))
+```
